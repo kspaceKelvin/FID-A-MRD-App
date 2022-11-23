@@ -7,6 +7,10 @@ This app takes as input MEGA-PRESS spectroscopy data with and without water supp
 * ``WaterSaturation`` is a ``userParameterString`` where a value of ``WATER_SUPPRESSION_RF_OFF`` indicates that water suppression is enabled
 * ``studyInstanceUID`` is part of the [``studyInformation``](https://github.com/ismrmrd/ismrmrd/blob/d805117b0d2075c8b6c4473eac55b055d2ba9590/schema/ismrmrd.xsd#L46) section, and must be the same between water suppressed and non-suppressed scans.
 
+The following test data sets are provided in the app container at ``/test_data``:
+* ``megapressDLPFC.mrd``, an MRD format conversion of [megapressDLPFC.dat](https://github.com/CIC-methods/FID-A/blob/master/exampleData/Siemens/sample01_megapress/megapress/megapressDLPFC.dat)
+* ``megapressDLPFC_w.mrd``, an MRD format conversion of [megapressDLPFC_w.dat](https://github.com/CIC-methods/FID-A/blob/master/exampleData/Siemens/sample01_megapress/megapress/megapressDLPFC_w.dat)
+
 ## Supported Configurations
 This app supports 1 config with a value of ``fida_megapress``, to be called with both water suppressed and unsuppressed data.
 
@@ -16,23 +20,32 @@ The MRD app can be downloaded from Docker Hub at https://hub.docker.com/r/kspace
 docker pull kspacekelvin/fid-a-mrd-app
 ```
 
-Start the Docker image and share port 9002:
+Start the Docker image with the container name ``fida-app``, a local folder named ``~/data`` mounted inside the container at ``/data``, and port 9002 shared:
 ```
-docker run --rm -p 9002:9002 kspacekelvin/msasha-mrd-app
+docker run --rm --name fida-app -v ~/data:/data -p 9002:9002 kspacekelvin/fid-a-mrd-app
 ```
 
-In another window, use an MRD client such as the one provided from the [python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server#11-reconstruct-a-phantom-raw-data-set-using-the-mrd-clientserver-pair):
+In another window, use an MRD client such as the one from the [python-ismrmrd-server](https://github.com/kspaceKelvin/python-ismrmrd-server#11-reconstruct-a-phantom-raw-data-set-using-the-mrd-clientserver-pair).  A copy is included in the app.
+
+Start another terminal inside the Docker started above:
+```
+docker exec -it fida-app bash
+```
 
 Run the client and send the data to the server.  Data must be sent for both the water suppresed and unsuppressed, in separate sessions.
 ```
-python3 client.py -o megapress_processed.mrd -c fida_megapress megapressDLPFC_w.mrd
-python3 client.py -o megapress_processed.mrd -c fida_megapress megapressDLPFC.mrd
+python3 /opt/code/python-ismrmrd-server/client.py -c fida_megapress -o /data/megapress_processed_w.mrd /test_data/megapressDLPFC_w.mrd
+python3 /opt/code/python-ismrmrd-server/client.py -c fida_megapress -o /data/megapress_processed.mrd /test_data/megapressDLPFC.mrd
 ```
 
 Data can be sent in either order, although if water-suppressed data is sent first, no FID-A processing is performed until the unsuppressed data is sent.
 
-The output file (e.g. megapress_processed.mrd) contains a single processed spectra calcaulated by FID-A.
+The output file (e.g. megapress_processed.mrd) contains a single processed spectra calcaulated by FID-A and is stored in the ``~/data`` folder.
 
+When processing is complete, the Docker container can be stopped by running:
+```
+docker kill fida-app
+```
 
 ## Building the App
 This code is an interface between the [FID-A Spectroscopy Toolbox](https://github.com/CIC-methods/FID-A) and the [matlab-ismrmrd-server](https://github.com/kspaceKelvin/matlab-ismrmrd-server), which implements an MRD App compatible interface using the [MRD](https://github.com/ismrmrd/ismrmrd/) data format.  The server can be run on any MATLAB-supported operating system, but Docker images can only built when running on Linux.
